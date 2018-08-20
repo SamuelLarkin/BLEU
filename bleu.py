@@ -222,20 +222,65 @@ class bleuStats:
 
 
 
+
+
+def get_args():
+    """Command line argument processing."""
+    from argparse import ArgumentParser
+
+    usage="prog [options] translation references ..."
+    help="""
+    A brief description of what this program does. (Don't bother trying to format
+    this text by including blank lines, etc: ArgumentParser is a control freak and
+    will reformat to suit its tastes.)
+    """
+
+    # Use the argparse module, not the deprecated optparse module.
+    parser = ArgumentParser(usage=usage, description=help)
+
+    # Use our standard help, verbose and debug support.
+    parser.add_argument('-s',
+            dest='smoothing',
+            nargs="?",
+            choices=(smooth_0.__name__, smooth_1.__name__, smooth_2.__name__, smooth_3.__name__, smooth_4.__name__, ),
+            const=smooth_1,
+            default=smooth_1,
+            help="one of smooth_{0,1,2,3,4}; -s alone implies %(const)s " "[%(default)s]")
+
+    parser.add_argument("translation_file",
+            type=open,
+            help="translation file")
+    parser.add_argument("reference_files",
+            nargs='+',
+            type=open,
+            help="reference files")
+
+    cmd_args = parser.parse_args()
+
+    # info, verbose, debug all print to stderr.
+    #print("arguments are:")
+    #for arg in cmd_args.__dict__:
+    #   print("  {0} = {1}".format(arg, getattr(cmd_args, arg)))
+    return cmd_args
+
+
+
+def main():
+    bleu = bleuStats()
+
+    args = get_args()
+
+    for translation, references in izip(args.translation_file, izip(*args.reference_files)):
+        #print(translation, references)
+        bleu += bleuStats(translation, references)
+
+    print(bleu)
+    print('Score: {score:0.6f}'.format(score = bleu.score(args.smoothing)))
+    print('BLEU score: {bleu:0.6f}'.format (bleu = bleu.bleu(args.smoothing)))
+    print('Human readable BLEU: {readable:2.2f}'.format(readable = 100 * bleu.bleu(args.smoothing)))
+
+
+
+
 if __name__ == '__main__':
-    candidate = 'the the the the the the the'
-    ref1 = 'the cat is on the mat'
-    ref2 = 'there is a cat on the mat'
-
-    bleu = bleuStats(candidate, [ref1, ref2])
-
-    print('bleu:', bleu)
-    print(bleu.score())
-
-    bleu1 = bleuStats('the the cat', [ref1, ref2])
-    print('bleu:', bleu1)
-    print(bleu1.score())
-
-    bleu1 += bleu
-    print('bleu:', bleu1)
-    print(bleu1.score())
+    main()
