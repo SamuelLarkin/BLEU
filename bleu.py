@@ -213,7 +213,7 @@ class bleuStats:
         """
         return smoothing(self)
         #return sum(starmap(partial(smoothing, N=self.norder), self.stats()), self.brevity_penalty)
-#        return sum(map(lambda (m, t): smooting(m, t, self.norder), izip(self.match, self.total)),
+#        return sum(map(lambda (m, t): smoothing(m, t, self.norder), izip(self.match, self.total)),
 #                self.brevity_penalty)
 
 
