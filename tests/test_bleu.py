@@ -24,3 +24,6 @@ class TestBleu(unittest.TestCase):
         self.assertEqual(b.brevity_penalty, 0.0)
         self.assertAlmostEqual(b.score(bleu.smooth_0), 0.0, 8)
         self.assertAlmostEqual(b.score(bleu.smooth_1), -52.1214, 4)
+        self.assertAlmostEqual(b.score(bleu.smooth_2), -1.64997, 4)
+        self.assertAlmostEqual(b.score(bleu.smooth_3), -1.00634, 4)
+        self.assertAlmostEqual(b.score(bleu.smooth_4), -2.54978, 4)

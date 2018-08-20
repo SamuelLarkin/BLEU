@@ -6,10 +6,10 @@ from itertools import izip
 from itertools import starmap
 from itertools import tee
 from collections import Counter
-from copy import deepcopy
-from math import log10
 from math import log
+from math import exp
 from functools import partial
+
 
 
 def ngram(iterable, n=2):
@@ -22,23 +22,103 @@ def ngram(iterable, n=2):
    return izip(*l)
 
 
-def smooth_0(match, total, N):
-    if match == 0:
-        return 0.
-    else:
-        return log(float(match) / float(total)) / N
+
+def smooth_0(bleustats):
+    N = bleustats.norder
+    result = bleustats.brevity_penalty
+    for match, total in bleustats.stats():
+        if match == 0:
+            return 0.0
+        else:
+            assert match >= 0
+            assert total > 0
+            result += log(float(match) / float(total)) / N
+    return result
 
 
-def smooth_1(match, total, N):
-    if match == 0:
-        return log(1e-30) / N
+
+def smooth_1(bleustats):
+    def helper(match, total, N):
+        if match == 0:
+            return log(1e-30) / N
+        else:
+            assert match >= 0
+            assert total > 0
+            return log(float(match) / float(total)) / N
+    return sum(starmap(partial(helper, N=bleustats.norder), bleustats.stats()), bleustats.brevity_penalty)
+
+
+
+def smooth_2(bleustats):
+    assert bleustats.total[0] > 0
+    N = bleustats.norder
+    result = bleustats.brevity_penalty
+    if bleustats.match[0] > 0:
+        for (match, total), smoothing in izip(bleustats.stats(), [0.0] + [1.0] * (N -1)):
+            result += log((float(match) + smoothing) / (float(total) + smoothing)) / N
     else:
-        return log(float(match) / float(total)) / N
+        result += log(1e-30) / N
+    return result
+
+
+
+def smooth_3(bleustats):
+    """
+    score = sum_{i=1}N {i-BLEU(x,y) / 2^{N-i+1}}
+    """
+    def helper(match, total, N):
+        if match == 0:
+            return log(1e-30) / N
+        else:
+            return log(float(match) / float(total)) / N
+    N = bleustats.norder
+    stats = list(bleustats.stats())
+    result = 0.0
+    for i in xrange(1, N+1):
+        sub_result = sum(starmap(partial(helper, N=N), stats[:i]), bleustats.brevity_penalty)
+        result += result + (exp(sub_result) / pow(2.0, (N-i+1.0)) );
+    return log(result)
+
+
+
+def smooth_4(bleustats):
+    """
+    New smoothing from mteval-v13a.pl.
+    Documentation from mteval-v13a.pl:
+    The smoothing is computed by taking 1 / ( 2^k ), instead of 0, for each precision score whose matching n-gram count is null
+    k is 1 for the first 'n' value for which the n-gram match count is null
+    For example, if the text contains:
+      - one 2-gram match
+      - and (consequently) two 1-gram matches
+    the n-gram count for each individual precision score would be:
+      - n=1  =>  prec_count = 2     (two unigrams)
+      - n=2  =>  prec_count = 1     (one bigram)
+      - n=3  =>  prec_count = 1/2   (no trigram,  taking 'smoothed' value of 1 / ( 2^k ), with k=1)
+      - n=4  =>  prec_count = 1/4   (no fourgram, taking 'smoothed' value of 1 / ( 2^k ), with k=2)
+    """
+    class helper:
+        def __init__(self, N):
+            self.smooth = 1.0
+            self.N = N
+        def __call__(self, match, total):
+            if total > 0:
+                assert match >= 0
+                if match == 0:
+                    self.smooth *= 2
+                    X = 1.0 / (self.smooth * float(total))
+                else:
+                    X = float(match) / float(total)
+                return log(X) / self.N
+            else:
+                return 0.0
+    # TODO: are we supposed to have brecity penalty?
+    return sum(starmap(helper(N=bleustats.norder), bleustats.stats()), 0.0)
+
 
 
 class bleuStats:
     norder = 4
-    
+
     def __init__(self, sentence, references):
         sentence    = sentence.strip().split()
         references  = [ s.strip().split() for s in references ]
@@ -84,15 +164,19 @@ class bleuStats:
                 bmlen     = self.bmlen,
                 match     = self.match,
                 total     = self.total,
-                precision = [ float(m) / t if t > 0 else 0. for m, t in zip(self.match, self.total) ],
+                precision = [ float(match) / total if total > 0 else 0. for match, total in zip(self.match, self.total) ],
                 brevity   = self.brevity_penalty,
                 )
         return internal_stats + stats
-        
+
 
     @property
     def brevity_penalty(self):
         return min(1. - float(self.bmlen) / float(self.len), 0.)
+
+
+    def stats(self):
+        return izip(self.match, self.total)
 
 
     def score(self, smoothing=smooth_1):
@@ -105,8 +189,8 @@ class bleuStats:
         what is used here.
 
         """
-        return sum(starmap(partial(smoothing, N=self.norder), izip(self.match, self.total)),
-                self.brevity_penalty)
+        return smoothing(self)
+        #return sum(starmap(partial(smoothing, N=self.norder), self.stats()), self.brevity_penalty)
 #        return sum(map(lambda (m, t): smooting(m, t, self.norder), izip(self.match, self.total)),
 #                self.brevity_penalty)
 
