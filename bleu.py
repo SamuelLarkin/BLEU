@@ -217,6 +217,8 @@ class bleuStats:
 #                self.brevity_penalty)
 
 
+    def bleu(self, smoothing=smooth_1):
+        return exp(self.score(smoothing))
 
 
 
