@@ -138,7 +138,7 @@ def smooth_4(bleustats):
 class bleuStats:
     norder = 4
 
-    def __init__(self, sentence, references):
+    def __init__(self, sentence='', references=['']):
         sentence    = sentence.strip().split()
         references  = [ s.strip().split() for s in references ]
         self._tgt_counts = [ Counter(ngram(sentence, n+1)) for n in xrange(0, self.norder) ]
