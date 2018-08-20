@@ -26,6 +26,9 @@ def ngram(iterable, n=2):
 
 
 def smooth_0(bleustats):
+    """
+    no smoothing
+    """
     N = bleustats.norder
     result = bleustats.brevity_penalty
     for match, total in bleustats.stats():
@@ -40,6 +43,9 @@ def smooth_0(bleustats):
 
 
 def smooth_1(bleustats):
+    """
+    Replace 0 by epsilon
+    """
     def helper(match, total, N):
         if match == 0:
             return log(epsilon) / N
@@ -47,16 +53,22 @@ def smooth_1(bleustats):
             assert match >= 0
             assert total > 0
             return log(float(match) / float(total)) / N
+
     return sum(starmap(partial(helper, N=bleustats.norder), bleustats.stats()), bleustats.brevity_penalty)
 
 
 
 def smooth_2(bleustats):
+    """
+    Increase the count by 1 for all n-grams with n>1 (cf. Lin & Och, Coling 2004)
+    """
     assert bleustats.total[0] > 0
     N = bleustats.norder
     result = bleustats.brevity_penalty
     if bleustats.match[0] > 0:
-        for (match, total), smoothing in izip(bleustats.stats(), [0.0] + [1.0] * (N -1)):
+        # 1-gram: count is not changed
+        # higher n-grams: all counts and the total are increased by 1
+        for (match, total), smoothing in izip(bleustats.stats(), [0.0] + [1.0] * (N - 1)):
             result += log((float(match) + smoothing) / (float(total) + smoothing)) / N
     else:
         result += log(epsilon) / N
@@ -74,12 +86,14 @@ def smooth_3(bleustats):
             return log(epsilon) / N
         else:
             return log(float(match) / float(total)) / N
+
     N = bleustats.norder
     stats = list(bleustats.stats())
     result = 0.0
     for i in xrange(1, N+1):
         sub_result = sum(starmap(partial(helper, N=N), stats[:i]), bleustats.brevity_penalty)
         result += result + (exp(sub_result) / pow(2.0, (N-i+1.0)) );
+
     return log(result)
 
 
@@ -103,6 +117,7 @@ def smooth_4(bleustats):
         def __init__(self, N):
             self.smooth = 1.0
             self.N = N
+
         def __call__(self, match, total):
             if total > 0:
                 assert match >= 0
@@ -114,7 +129,8 @@ def smooth_4(bleustats):
                 return log(X) / self.N
             else:
                 return 0.0
-    # TODO: are we supposed to have brecity penalty?
+
+    # TODO: Don't we need a brevity penalty?
     return sum(starmap(helper(N=bleustats.norder), bleustats.stats()), 0.0)
 
 
@@ -179,6 +195,9 @@ class bleuStats:
 
 
     def stats(self):
+        """
+        Returns an iterator of (match, total).
+        """
         return izip(self.match, self.total)
 
 
