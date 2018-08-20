@@ -11,6 +11,8 @@ from math import exp
 from functools import partial
 
 
+epsilon = 1e-30
+
 
 def ngram(iterable, n=2):
    """s -> (s0,s1), (s1,s2), (s2, s3), ..."""
@@ -40,7 +42,7 @@ def smooth_0(bleustats):
 def smooth_1(bleustats):
     def helper(match, total, N):
         if match == 0:
-            return log(1e-30) / N
+            return log(epsilon) / N
         else:
             assert match >= 0
             assert total > 0
@@ -57,7 +59,8 @@ def smooth_2(bleustats):
         for (match, total), smoothing in izip(bleustats.stats(), [0.0] + [1.0] * (N -1)):
             result += log((float(match) + smoothing) / (float(total) + smoothing)) / N
     else:
-        result += log(1e-30) / N
+        result += log(epsilon) / N
+
     return result
 
 
@@ -68,7 +71,7 @@ def smooth_3(bleustats):
     """
     def helper(match, total, N):
         if match == 0:
-            return log(1e-30) / N
+            return log(epsilon) / N
         else:
             return log(float(match) / float(total)) / N
     N = bleustats.norder
