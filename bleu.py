@@ -169,24 +169,48 @@ class bleuStats:
         return self
 
 
-    def __str__(self):
+    def _format_stats(self):
+        def format_ngram(n, match, total):
+            return '{n}-gram (match/total) {match}/{total} {precision:0.6f}'.format(
+                    n=n,
+                    match=match,
+                    total=total,
+                    precision=float(match)/float(total) if total > 0 else 0.)
+
+        def format_ngrams(stats):
+            return '\n'.join(format_ngram(n, match, total) for n, (match, total) in enumerate(stats, 1))
+
+        stat_format  = '{ngrams}\n'
+        stat_format += 'Sentence length: {len}; Best-match sentence length: {bmlen}\n'
+        stat_format += 'Brevity penalty: exp({brevity:0.6f}) = {exp_brevity:0.6f}'
+
+        return stat_format.format(
+                ngrams      = format_ngrams(self.stats()),
+                len         = self.len,
+                bmlen       = self.bmlen,
+                brevity     = self.brevity_penalty,
+                exp_brevity = exp(self.brevity_penalty),
+                )
+
+
+    def _format_internal_stats(self):
         def print_helper(array):
             return '\n'.join(('{}-ngram: {}'.format(i, str(c)) for i, c in enumerate(array, 1)))
 
-        internal_stats = 'Counts:\n{tgt_counts}\nTotal:\n{ref_counts}\nClipped:\n{tgt_counts_clipped}\n'.format(
+        stat_format  = 'Counts:\n{tgt_counts}\n'
+        stat_format += 'Total:\n{ref_counts}\n'
+        stat_format += 'Clipped:\n{tgt_counts_clipped}\n'
+
+        return stat_format.format(
                 tgt_counts         = print_helper(self._tgt_counts),
                 ref_counts         = print_helper(self._ref_counts),
                 tgt_counts_clipped = print_helper(self._tgt_counts_clipped),
                 )
-        stats = 'len: {len}\nbmlen: {bmlen}\nMatch: {match}\nTotal: {total}\nprecision: {precision}\nbrevity: {brevity}'.format(
-                len       = self.len,
-                bmlen     = self.bmlen,
-                match     = self.match,
-                total     = self.total,
-                precision = [ float(match) / total if total > 0 else 0. for match, total in zip(self.match, self.total) ],
-                brevity   = self.brevity_penalty,
-                )
-        return internal_stats + stats
+
+
+    def __str__(self):
+        return self._format_stats()
+        #return self._format_internal_stats() + self._format_stats()
 
 
     @property
