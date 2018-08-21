@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import unittest
 import bleu
-from bleu import bleuStats
+from bleu import BleuStats
 
 
 
@@ -14,7 +14,7 @@ class TestBleu(unittest.TestCase):
         ref1 = 'the cat is on the mat'
         ref2 = 'there is a cat on the mat'
 
-        b = bleuStats(candidate, [ref1, ref2])
+        b = BleuStats(candidate, [ref1, ref2])
 
         #print('bleu:', b)
         #print(b.score())
@@ -37,8 +37,8 @@ class TestBleu(unittest.TestCase):
         ref1 = 'the cat is on the mat'
         ref2 = 'there is a cat on the mat'
 
-        b1 = bleuStats(candidate1, [ref1, ref2])
-        b2 = bleuStats(candidate2, [ref1, ref2])
+        b1 = BleuStats(candidate1, [ref1, ref2])
+        b2 = BleuStats(candidate2, [ref1, ref2])
 
         b1 += b2
 

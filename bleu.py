@@ -140,7 +140,7 @@ def smooth_4(bleustats):
 
 
 
-class bleuStats:
+class BleuStats:
     norder = 4
 
     def __init__(self, sentence='', references=['']):
@@ -158,7 +158,7 @@ class bleuStats:
         self.match   = [ sum(c.values(), 0.) for c in self._tgt_counts_clipped ]
         self.total   = map(lambda x: max(x, 0), xrange(self.len, self.len - self.norder, -1))
 
-        # Temporary counts that are useful for debugging but slow down bleuStats.__add__() in bootstrapConfInterval().
+        # Temporary counts that are useful for debugging but slow down BleuStats.__add__() in bootstrapConfInterval().
         del(self._ref_counts)
         del(self._tgt_counts)
         del(self._tgt_counts_clipped)
@@ -261,12 +261,12 @@ class bleuStats:
 
 
 def bootstrapConfInterval(bleus, conf=0.95, m=1000):
-    bleu = sum(bleus, bleuStats()).bleu()
+    bleu = sum(bleus, BleuStats()).bleu()
     deltas = []
     for i in trange(m, desc='Computing the confidence'):
         t = ( choice(bleus) for n in bleus )
-        deltas.append(abs(bleu - sum(t, bleuStats()).bleu()))
-        #deltas.append(abs(bleu - sum(( choice(bleus) for n in bleus ), bleuStats()).bleu()))
+        deltas.append(abs(bleu - sum(t, BleuStats()).bleu()))
+        #deltas.append(abs(bleu - sum(( choice(bleus) for n in bleus ), BleuStats()).bleu()))
     deltas.sort()
     return deltas[int(ceil(m * conf) - 1)]
 
@@ -330,12 +330,10 @@ def get_args():
 
 
 def main():
-    bleu = bleuStats()
-
     args = get_args()
 
-    bleus = [ bleuStats(translation, references) for translation, references in izip(args.translation_file, izip(*args.reference_files)) ]
-    bleu  = sum(bleus, bleuStats())
+    bleus = [ BleuStats(translation, references) for translation, references in izip(args.translation_file, izip(*args.reference_files)) ]
+    bleu  = sum(bleus, BleuStats())
     confidence = bootstrapConfInterval(bleus, m=args.number_bootstrap, conf=args.confidence_level) if args.confidence_level else 0.0
 
     print(bleu)
@@ -346,6 +344,8 @@ def main():
     print('Human readable BLEU: {readable:2.2f}{conf}'.format(
         readable = 100. * bleu.bleu(args.smoothing),
         conf = ' +/- {conf:0.6f}'.format(conf=100.*confidence) if args.confidence_level else ''))
+
+
 
 
 
