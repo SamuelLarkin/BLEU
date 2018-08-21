@@ -264,8 +264,12 @@ def bootstrapConfInterval(bleus, conf=0.95, m=1000):
     def getBleu(bleus):
         return sum(bleus, BleuStats()).bleu()
 
+    def sample_wr(bleus):
+        return ( choice(bleus) for _ in bleus )
+
     bleu = getBleu(bleus)
-    deltas = [ abs(bleu - getBleu( choice(bleus) for _ in bleus )) for i in trange(m, desc='Computing the confidence') ]
+    progress_desc = 'Computing the confidence'
+    deltas = [ abs(bleu - getBleu(sample_wr(bleus))) for _ in trange(m, desc=progress_desc) ]
     deltas.sort()
     return deltas[int(ceil(m * conf) - 1)]
 
