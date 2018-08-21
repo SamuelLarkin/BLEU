@@ -236,9 +236,6 @@ class bleuStats:
 
         """
         return smoothing(self)
-        #return sum(starmap(partial(smoothing, N=self.norder), self.stats()), self.brevity_penalty)
-#        return sum(map(lambda (m, t): smoothing(m, t, self.norder), izip(self.match, self.total)),
-#                self.brevity_penalty)
 
 
     def bleu(self, smoothing=smooth_1):
@@ -252,24 +249,26 @@ def get_args():
     """Command line argument processing."""
     from argparse import ArgumentParser
 
-    usage="prog [options] translation references ..."
+    usage="bleu.py [options] translation ref1 [ref2 ...]"
     help="""
-    A brief description of what this program does. (Don't bother trying to format
-    this text by including blank lines, etc: ArgumentParser is a control freak and
-    will reformat to suit its tastes.)
+    Computes the BLEU score for the set of translations in testfile, using the
+    reference files ref1, ... , refn. Each file should have one sentence per line,
+    and the sentences in testfile should match line for line with the sentences in
+    each reference file.abs
     """
 
-    # Use the argparse module, not the deprecated optparse module.
     parser = ArgumentParser(usage=usage, description=help)
 
-    # Use our standard help, verbose and debug support.
+    # TODO: we need to describe what are smooth{0,1,2,3,4}
+    # This could be helpful https://stackoverflow.com/a/49999185
     parser.add_argument('-s',
             dest='smoothing',
+            metavar='SMooThing',
             nargs="?",
             choices=(smooth_0.__name__, smooth_1.__name__, smooth_2.__name__, smooth_3.__name__, smooth_4.__name__, ),
             const=smooth_1,
             default=smooth_1,
-            help="one of smooth_{0,1,2,3,4}; -s alone implies %(const)s " "[%(default)s]")
+            help="one of %(choices) -s alone implies %(const)s [%(default)s]")
 
     parser.add_argument("translation_file",
             type=open,
