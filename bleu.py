@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 
+from copy import deepcopy
 from itertools import izip
 from itertools import starmap
 from itertools import tee
@@ -167,6 +168,12 @@ class bleuStats:
         self.match = [ a + b for a, b in izip(self.match, other.match) ]
         self.total = [ a + b for a, b in izip(self.total, other.total) ]
         return self
+
+
+    def __add__(self, other):
+        result = deepcopy(self)
+        result += other
+        return result
 
 
     def _format_stats(self):
