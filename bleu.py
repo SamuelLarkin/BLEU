@@ -2,14 +2,18 @@
 
 from __future__ import print_function
 
+from collections import Counter
 from copy import deepcopy
+from functools import partial
 from itertools import izip
 from itertools import starmap
 from itertools import tee
-from collections import Counter
-from math import log
+from math import ceil
 from math import exp
-from functools import partial
+from math import log
+from random import choice
+
+from tqdm import trange
 
 
 epsilon = 1e-30
@@ -250,6 +254,17 @@ class bleuStats:
 
 
 
+def bootstrapConfInterval(bleus, conf=0.95, m=1000):
+    bleu = sum(bleus, bleuStats()).bleu()
+    deltas = []
+    for _ in trange(m, desc='Computing the confidence'):
+        t = [ choice(bleus) for n in bleus ]
+        deltas.append(abs(bleu - sum(t, bleuStats()).bleu()))
+    deltas.sort()
+    return deltas[int(ceil(m * conf) - 1)]
+
+
+
 
 
 def get_args():
@@ -300,14 +315,15 @@ def main():
 
     args = get_args()
 
-    for translation, references in izip(args.translation_file, izip(*args.reference_files)):
-        #print(translation, references)
-        bleu += bleuStats(translation, references)
+    bleus = [ bleuStats(translation, references) for translation, references in izip(args.translation_file, izip(*args.reference_files)) ]
+    bleu  = sum(bleus, bleuStats())
+    confidence = bootstrapConfInterval(bleus)
 
     print(bleu)
     print('Score: {score:0.6f}'.format(score = bleu.score(args.smoothing)))
     print('BLEU score: {bleu:0.6f}'.format (bleu = bleu.bleu(args.smoothing)))
     print('Human readable BLEU: {readable:2.2f}'.format(readable = 100 * bleu.bleu(args.smoothing)))
+    print(confidence)
 
 
 
