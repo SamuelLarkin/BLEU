@@ -146,6 +146,7 @@ class bleuStats:
     def __init__(self, sentence='', references=['']):
         sentence    = sentence.strip().split()
         references  = [ s.strip().split() for s in references ]
+
         self._tgt_counts = [ Counter(ngram(sentence, n+1)) for n in xrange(0, self.norder) ]
         self._ref_counts = [ reduce(lambda a, b: a | Counter(ngram(b, n+1)), references, Counter()) for n in xrange(0, self.norder) ]
         assert len(self._tgt_counts) == len(self._ref_counts)
@@ -156,6 +157,11 @@ class bleuStats:
         self.bmlen   = sorted([ (abs(r_len - self.len), r_len) for r_len in map(len, references) ])[0][1]
         self.match   = [ sum(c.values(), 0.) for c in self._tgt_counts_clipped ]
         self.total   = map(lambda x: max(x, 0), xrange(self.len, self.len - self.norder, -1))
+
+        # Temporary counts that are useful for debugging but slow down bleuStats.__add__() in bootstrapConfInterval().
+        del(self._ref_counts)
+        del(self._tgt_counts)
+        del(self._tgt_counts_clipped)
 
 
     def __isub__(self, other):
