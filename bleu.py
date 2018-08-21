@@ -291,6 +291,18 @@ def get_args():
             const=smooth_1,
             default=smooth_1,
             help="one of %(choices) -s alone implies %(const)s [%(default)s]")
+    parser.add_argument("-m",
+            dest="number_bootstrap",
+            type=int,
+            default=1000,
+            help="number of resampling runs [%(default)s]")
+    parser.add_argument("-c",
+            dest="confidence_level",
+            nargs="?",
+            type=float,
+            default=None,
+            const=0.95,
+            help="probability of confidence interval, in (0,1] -c alone implies %(const)s [%(default)s]")
 
     parser.add_argument("translation_file",
             type=open,
@@ -317,13 +329,16 @@ def main():
 
     bleus = [ bleuStats(translation, references) for translation, references in izip(args.translation_file, izip(*args.reference_files)) ]
     bleu  = sum(bleus, bleuStats())
-    confidence = bootstrapConfInterval(bleus)
+    confidence = bootstrapConfInterval(bleus, m=args.number_bootstrap, conf=args.confidence_level) if args.confidence_level else 0.0
 
     print(bleu)
     print('Score: {score:0.6f}'.format(score = bleu.score(args.smoothing)))
-    print('BLEU score: {bleu:0.6f}'.format (bleu = bleu.bleu(args.smoothing)))
-    print('Human readable BLEU: {readable:2.2f}'.format(readable = 100 * bleu.bleu(args.smoothing)))
-    print(confidence)
+    print('BLEU score: {bleu:0.6f}{conf}'.format(
+        bleu = bleu.bleu(args.smoothing),
+        conf = ' +/- {conf:0.6f}'.format(conf=confidence) if args.confidence_level else ''))
+    print('Human readable BLEU: {readable:2.2f}{conf}'.format(
+        readable = 100. * bleu.bleu(args.smoothing),
+        conf = ' +/- {conf:0.6f}'.format(conf=100.*confidence) if args.confidence_level else ''))
 
 
 
