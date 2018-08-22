@@ -372,6 +372,8 @@ def score_cli_args(subparsers):
     Adds command line arguments for score.
     """
 
+    from argparse import FileType
+
     def is_probability(a):
         a = float(a)
         if not (0 < a <= 1.0):
@@ -405,11 +407,11 @@ def score_cli_args(subparsers):
             help="probability of confidence interval, in (0,1] -c alone implies %(const)s [%(default)s]")
 
     parser.add_argument("translation_file",
-            type=open,
+            type=FileType('r'),
             help="translation file")
     parser.add_argument("reference_files",
             nargs='+',
-            type=open,
+            type=FileType('r'),
             help="reference files")
     parser.set_defaults(func=score)
 
@@ -420,6 +422,8 @@ def compare_cli_args(subparsers):
     Adds command line arguments for compare.
     """
 
+    from argparse import FileType
+
     help="""
     Compare scores over a set of testfiles using bootstrap resampling.
     """
@@ -427,12 +431,12 @@ def compare_cli_args(subparsers):
     parser_compare.add_argument('-t',
             dest="translation_files",
             nargs='+',
-            type=open,
+            type=FileType('r'),
             help="translation files")
     parser_compare.add_argument('-r',
             dest="reference_files",
             nargs='+',
-            type=open,
+            type=FileType('r'),
             help="reference files")
     parser_compare.set_defaults(func=compare)
 
