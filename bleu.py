@@ -262,6 +262,9 @@ class BleuStats:
 
 # https://lemire.me/blog/2008/12/17/fast-argmax-in-python/
 def argmax(array):
+    """
+    Returns the index of the biggest element in array.
+    """
     return array.index(max(array))
 
 
@@ -283,6 +286,8 @@ def sample_wr(indices):
 
 
 def getBleu(bleus):
+    """
+    """
     return sum(bleus, BleuStats()).bleu()
 
 
@@ -299,6 +304,8 @@ def getBleus(stats, indices):
 
 
 def bootstrapConfInterval(bleus, conf=0.95, m=1000):
+    """
+    """
     bleu = getBleu(bleus)
     progress_desc = 'Computing the confidence'
     deltas = [ abs(bleu - getBleu(sample_wr(bleus))) for _ in trange(m, desc=progress_desc) ]
@@ -307,73 +314,25 @@ def bootstrapConfInterval(bleus, conf=0.95, m=1000):
 
 
 
-
-
-def get_args():
-    """Command line argument processing."""
-    from argparse import ArgumentParser
-    from argparse import ArgumentTypeError
-
-    def is_probability(a):
-        a = float(a)
-        if not (0 < a <= 1.0):
-            raise ArgumentTypeError("%r not in range (0.0, 1.0]" % (a,))
-        return a
-
-    usage="bleu.py [options] translation ref1 [ref2 ...]"
-    help="""
-    Computes the BLEU score for the set of translations in testfile, using the
-    reference files ref1, ... , refn. Each file should have one sentence per line,
-    and the sentences in testfile should match line for line with the sentences in
-    each reference file.abs
+def bootstrapNWiseComparison(bleus, m=1000):
     """
+    """
+    n = len(bleus[0])   # number of sentences
+    t = len(bleus)   # number of translation systems
+    res = [0] * t
+    for _ in trange(m, desc='Comparing translations'):
+        bs = getBleus(bleus, tuple(sample_wr(xrange(n))))
+        res[argmax(bs)] += 1
 
-    parser = ArgumentParser(usage=usage, description=help)
-
-    # TODO: we need to describe what are smooth{0,1,2,3,4}
-    # This could be helpful https://stackoverflow.com/a/49999185
-    parser.add_argument('-s',
-            dest='smoothing',
-            metavar='SMooThing',
-            nargs="?",
-            choices=(smooth_0.__name__, smooth_1.__name__, smooth_2.__name__, smooth_3.__name__, smooth_4.__name__, ),
-            const=smooth_1,
-            default=smooth_1,
-            help="one of %(choices) -s alone implies %(const)s [%(default)s]")
-    parser.add_argument("-m",
-            dest="number_bootstrap",
-            type=int,
-            default=1000,
-            help="number of resampling runs [%(default)s]")
-    parser.add_argument("-c",
-            dest="confidence_level",
-            type=is_probability,
-            default=None,
-            const=0.95,
-            nargs="?",
-            help="probability of confidence interval, in (0,1] -c alone implies %(const)s [%(default)s]")
-
-    parser.add_argument("translation_file",
-            type=open,
-            help="translation file")
-    parser.add_argument("reference_files",
-            nargs='+',
-            type=open,
-            help="reference files")
-
-    cmd_args = parser.parse_args()
-
-    # info, verbose, debug all print to stderr.
-    #print("arguments are:")
-    #for arg in cmd_args.__dict__:
-    #   print("  {0} = {1}".format(arg, getattr(cmd_args, arg)))
-    return cmd_args
+    return res
 
 
 
-def main():
-    args = get_args()
 
+
+def score(args):
+    """
+    """
     bleus = [ BleuStats(translation, references) for translation, references in izip(args.translation_file, izip(*args.reference_files)) ]
     bleu  = sum(bleus, BleuStats())
     confidence = bootstrapConfInterval(bleus, m=args.number_bootstrap, conf=args.confidence_level) if args.confidence_level else 0.0
@@ -389,37 +348,122 @@ def main():
 
 
 
-def bootstrapNWiseComparison(bleus, m=1000):
-    n = len(bleus[0])
-    t = len(bleus)
-    res = [0] * t
-    for _ in xrange(m):
-        bs = getBleus(bleus, tuple(sample_wr(xrange(n))))
-        res[argmax(bs)] += 1
-
-    return res
-
-
-
-def test():
-    translation_files = [ open(n, mode='r') for n in ('corpora/test.1', 'corpora/test.2') ]
-    reference_files = [ open(n, mode='r') for n in ('corpora/test.ref', ) ]
-    #print(translation_files, reference_files)
-
+def compare(args):
+    """
+    """
     bleus = []
-    for translations, references in izip(izip(*translation_files), izip(*reference_files)):
-        #print(translations, references)
+    for translations, references in izip(izip(*args.translation_files), izip(*args.reference_files)):
         bleus.append(tuple(BleuStats(t, references) for t in translations))
 
     # Transpose bleus so its dimensions are t X n.
     bleus = tuple(izip(*bleus))
-    #print(len(bleus), len(bleus[0]))
 
-    m = 10
-    res = bootstrapNWiseComparison(bleus, m)
+    res = bootstrapNWiseComparison(bleus, m=args.number_bootstrap)
 
     for i, t in enumerate(res):
-        print('{fn} got max BLEU score in {s:%} of the samples'.format(fn=translation_files[i].name, s=float(t)/m))
+        print('{fn} got max BLEU score in {s:%} of the samples'.format(
+            fn = args.translation_files[i].name,
+            s  = float(t)/args.number_bootstrap))
+
+
+
+def score_cli_args(subparsers):
+    """
+    Adds command line arguments for score.
+    """
+
+    def is_probability(a):
+        a = float(a)
+        if not (0 < a <= 1.0):
+            raise ArgumentTypeError("%r not in range (0.0, 1.0]" % (a,))
+        return a
+
+    help="""
+    Computes the BLEU score for the set of translations in testfile, using the
+    reference files ref1, ... , refn. Each file should have one sentence per line,
+    and the sentences in testfile should match line for line with the sentences in
+    each reference file.abs
+    """
+    parser = subparsers.add_parser('score', help=help)
+
+    # TODO: we need to describe what are smooth{0,1,2,3,4}
+    # This could be helpful https://stackoverflow.com/a/49999185
+    parser.add_argument('-s',
+            dest='smoothing',
+            metavar='SMooThing',
+            nargs="?",
+            choices=(smooth_0.__name__, smooth_1.__name__, smooth_2.__name__, smooth_3.__name__, smooth_4.__name__, ),
+            const=smooth_1,
+            default=smooth_1,
+            help="one of %(choices) -s alone implies %(const)s [%(default)s]")
+    parser.add_argument("-c",
+            dest="confidence_level",
+            type=is_probability,
+            default=None,
+            const=0.95,
+            nargs="?",
+            help="probability of confidence interval, in (0,1] -c alone implies %(const)s [%(default)s]")
+
+    parser.add_argument("translation_file",
+            type=open,
+            help="translation file")
+    parser.add_argument("reference_files",
+            nargs='+',
+            type=open,
+            help="reference files")
+    parser.set_defaults(func=score)
+
+
+
+def compare_cli_args(subparsers):
+    """
+    Adds command line arguments for compare.
+    """
+
+    help="""
+    Compare scores over a set of testfiles using bootstrap resampling.
+    """
+    parser_compare = subparsers.add_parser('compare', help=help)
+    parser_compare.add_argument('-t',
+            dest="translation_files",
+            nargs='+',
+            type=open,
+            help="translation files")
+    parser_compare.add_argument('-r',
+            dest="reference_files",
+            nargs='+',
+            type=open,
+            help="reference files")
+    parser_compare.set_defaults(func=compare)
+
+
+
+def main():
+    """Command line argument processing."""
+    from argparse import ArgumentParser
+    from argparse import ArgumentTypeError
+
+    parser = ArgumentParser(prog='bleu')
+    parser.add_argument("-m",
+            dest="number_bootstrap",
+            type=int,
+            default=1000,
+            help="number of resampling runs [%(default)s]")
+
+    subparsers = parser.add_subparsers(help='sub-command help')
+    score_cli_args(subparsers)
+    compare_cli_args(subparsers)
+
+    cmd_args = parser.parse_args()
+
+    #print(cmd_args)
+    ## info, verbose, debug all print to stderr.
+    #print("arguments are:")
+    #for arg in cmd_args.__dict__:
+    #   print("  {0} = {1}".format(arg, getattr(cmd_args, arg)))
+
+    cmd_args.func(cmd_args)
+
 
 
 
@@ -427,5 +471,4 @@ def test():
 
 
 if __name__ == '__main__':
-    test()
-    #main()
+    main()
