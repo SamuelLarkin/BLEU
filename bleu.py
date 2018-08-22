@@ -155,7 +155,7 @@ class BleuStats:
 
         self.len     = len(sentence)
         self.bmlen   = sorted([ (abs(r_len - self.len), r_len) for r_len in map(len, references) ])[0][1]
-        self.match   = [ sum(c.values(), 0.) for c in self._tgt_counts_clipped ]
+        self.match   = [ sum(c.values(), 0) for c in self._tgt_counts_clipped ]
         self.total   = map(lambda x: max(x, 0), xrange(self.len, self.len - self.norder, -1))
 
         # Temporary counts that are useful for debugging but slow down BleuStats.__add__() in bootstrapConfInterval().
@@ -188,7 +188,7 @@ class BleuStats:
 
     def _format_stats(self):
         def format_ngram(n, match, total):
-            return '{n}-gram (match/total) {match}/{total} {precision:0.6f}'.format(
+            return '{n}-gram (match/total) {match:d}/{total:d} {precision:0.6f}'.format(
                     n=n,
                     match=match,
                     total=total,
