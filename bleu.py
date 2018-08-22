@@ -312,6 +312,13 @@ def bootstrapConfInterval(bleus, conf=0.95, m=1000):
 def get_args():
     """Command line argument processing."""
     from argparse import ArgumentParser
+    from argparse import ArgumentTypeError
+
+    def is_probability(a):
+        a = float(a)
+        if not (0 < a <= 1.0):
+            raise ArgumentTypeError("%r not in range (0.0, 1.0]" % (a,))
+        return a
 
     usage="bleu.py [options] translation ref1 [ref2 ...]"
     help="""
@@ -340,10 +347,10 @@ def get_args():
             help="number of resampling runs [%(default)s]")
     parser.add_argument("-c",
             dest="confidence_level",
-            nargs="?",
-            type=float,
+            type=is_probability,
             default=None,
             const=0.95,
+            nargs="?",
             help="probability of confidence interval, in (0,1] -c alone implies %(const)s [%(default)s]")
 
     parser.add_argument("translation_file",
