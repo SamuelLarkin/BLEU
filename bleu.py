@@ -350,8 +350,63 @@ def main():
 
 
 
+# https://www.safaribooksonline.com/library/view/python-cookbook-2nd/0596007973/ch18s04.html
+# itertools.slice(sample_wr(population), 50)
+#def sample_wr(population, _choose=random.choice):
+#    while True:
+#        yield _choose(population)
+
+
+
+def test():
+    # https://lemire.me/blog/2008/12/17/fast-argmax-in-python/
+    def argmax(array):
+        return array.index(max(array))
+
+    def sample_wr(indices):
+        """
+        Sampling with replacement in a population.
+        """
+        return ( choice(indices) for _ in indices )
+
+    def getBleus(stats, indices):
+        """
+        stats[t][n]
+        indices[n]
+        """
+        assert len(indices) == len(stats[0])
+        #return [ sum((t[i] for i in indices), BleuStats()) for t in stats ]
+        return [ sum((t[i] for i in indices), BleuStats()).bleu() for t in stats ]
+
+    translation_files = [ open(n, mode='r') for n in ('corpora/test.1', 'corpora/test.2') ]
+    reference_files = [ open(n, mode='r') for n in ('corpora/test.ref', ) ]
+    print(translation_files, reference_files)
+
+    bleus = []
+    for translations, references in izip(izip(*translation_files), izip(*reference_files)):
+        #print(translations, references)
+        bleus.append(tuple(BleuStats(t, references) for t in translations))
+
+    # Transpose bleus so its dimensions are t X n.
+    bleus = tuple(izip(*bleus))
+    print(len(bleus), len(bleus[0]))
+
+    n = len(bleus[0])
+    t = len(bleus)
+    m = 10
+    res = [0] * t
+    for _ in xrange(m):
+        bs = getBleus(bleus, tuple(sample_wr(xrange(n))))
+        res[argmax(bs)] += 1
+
+    for i, t in enumerate(res):
+        print('{fn} got max BLEU score in {s:%} of the samples'.format(fn=translation_files[i].name, s=float(t)/m))
+
+
+
 
 
 
 if __name__ == '__main__':
-    main()
+    test()
+    #main()
