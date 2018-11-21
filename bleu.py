@@ -19,17 +19,6 @@ from tqdm import trange
 epsilon = 1e-30
 
 
-def ngram(iterable, n=2):
-   """s -> (s0,s1), (s1,s2), (s2, s3), ..."""
-   assert n > 0, 'Cannot create negative n-grams.'
-   l = tee(iterable, n)
-   for i, s in enumerate(l):
-      for _ in xrange(i):
-         next(s, None)
-   return izip(*l)
-
-
-
 def smooth_0(bleustats):
     """
     no smoothing
