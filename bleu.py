@@ -5,16 +5,21 @@ from __future__ import print_function
 from collections import Counter
 from copy import deepcopy
 from functools import partial
-from itertools import izip
+from functools import reduce
 from itertools import starmap
 from itertools import tee
 from math import ceil
 from math import exp
 from math import log
+from ngram import ngram
 from random import choice
 
 from tqdm import trange
 
+try:
+    from itertools import izip as zip
+except ImportError:
+    pass
 
 epsilon = 1e-30
 
@@ -62,7 +67,7 @@ def smooth_2(bleustats):
     if bleustats.match[0] > 0:
         # 1-gram: count is not changed
         # higher n-grams: all counts and the total are increased by 1
-        for (match, total), smoothing in izip(bleustats.stats(), [0.0] + [1.0] * (N - 1)):
+        for (match, total), smoothing in zip(bleustats.stats(), [0.0] + [1.0] * (N - 1)):
             result += log((float(match) + smoothing) / (float(total) + smoothing)) / N
     else:
         result += log(epsilon) / N
@@ -84,7 +89,7 @@ def smooth_3(bleustats):
     N = bleustats.norder
     stats = list(bleustats.stats())
     result = 0.0
-    for i in xrange(1, N+1):
+    for i in range(1, N+1):
         sub_result = sum(starmap(partial(helper, N=N), stats[:i]), bleustats.brevity_penalty)
         result += result + (exp(sub_result) / pow(2.0, (N-i+1.0)) );
 
@@ -136,16 +141,16 @@ class BleuStats:
         sentence    = sentence.strip().split()
         references  = [ s.strip().split() for s in references ]
 
-        self._tgt_counts = [ Counter(ngram(sentence, n+1)) for n in xrange(0, self.norder) ]
-        self._ref_counts = [ reduce(lambda a, b: a | Counter(ngram(b, n+1)), references, Counter()) for n in xrange(0, self.norder) ]
+        self._tgt_counts = [ Counter(ngram(sentence, n+1)) for n in range(0, self.norder) ]
+        self._ref_counts = [ reduce(lambda a, b: a | Counter(ngram(b, n+1)), references, Counter()) for n in range(0, self.norder) ]
         assert len(self._tgt_counts) == len(self._ref_counts)
-        self._tgt_counts_clipped  = [ a & b for a, b in izip(self._tgt_counts, self._ref_counts) ]
+        self._tgt_counts_clipped  = [ a & b for a, b in zip(self._tgt_counts, self._ref_counts) ]
         assert len(self._tgt_counts) == len(self._tgt_counts_clipped)
 
         self.len     = len(sentence)
         self.bmlen   = sorted([ (abs(r_len - self.len), r_len) for r_len in map(len, references) ])[0][1]
         self.match   = [ sum(c.values(), 0) for c in self._tgt_counts_clipped ]
-        self.total   = map(lambda x: max(x, 0), xrange(self.len, self.len - self.norder, -1))
+        self.total   = map(lambda x: max(x, 0), range(self.len, self.len - self.norder, -1))
 
         # Temporary counts that are useful for debugging but slow down BleuStats.__add__() in bootstrapConfInterval().
         del(self._ref_counts)
@@ -156,16 +161,16 @@ class BleuStats:
     def __isub__(self, other):
         self.len -= other.len
         self.bmlen -= other.bmlen
-        self.match = [ a - b for a, b in izip(self.match, other.match) ]
-        self.total = [ a - b for a, b in izip(self.total, other.total) ]
+        self.match = [ a - b for a, b in zip(self.match, other.match) ]
+        self.total = [ a - b for a, b in zip(self.total, other.total) ]
         return self
 
 
     def __iadd__(self, other):
         self.len += other.len
         self.bmlen += other.bmlen
-        self.match = [ a + b for a, b in izip(self.match, other.match) ]
-        self.total = [ a + b for a, b in izip(self.total, other.total) ]
+        self.match = [ a + b for a, b in zip(self.match, other.match) ]
+        self.total = [ a + b for a, b in zip(self.total, other.total) ]
         return self
 
 
@@ -228,7 +233,7 @@ class BleuStats:
         """
         Returns an iterator of (match, total).
         """
-        return izip(self.match, self.total)
+        return zip(self.match, self.total)
 
 
     def score(self, smoothing=smooth_1):
@@ -310,49 +315,49 @@ def bootstrapNWiseComparison(bleus, m=1000):
     t = len(bleus)   # number of translation systems
     res = [0] * t
     for _ in trange(m, desc='Comparing translations'):
-        bs = getBleus(bleus, tuple(sample_wr(xrange(n))))
+        bs = getBleus(bleus, tuple(sample_wr(range(n))))
         res[argmax(bs)] += 1
 
     return res
 
 
 
-
-
-def score(args):
+def score(translation_file, reference_files, smoothing, confidence_level, number_bootstrap=10000):
     """
     """
-    bleus = [ BleuStats(translation, references) for translation, references in izip(args.translation_file, izip(*args.reference_files)) ]
+    bleus = [ BleuStats(translation, references) for translation, references in zip(translation_file, zip(*reference_files)) ]
     bleu  = sum(bleus, BleuStats())
-    confidence = bootstrapConfInterval(bleus, m=args.number_bootstrap, conf=args.confidence_level) if args.confidence_level else 0.0
+    confidence = bootstrapConfInterval(bleus, m=number_bootstrap, conf=confidence_level) if confidence_level else 0.0
 
     print(bleu)
-    print('Score: {score:0.6f}'.format(score = bleu.score(args.smoothing)))
+    print('Score: {score:0.6f}'.format(score = bleu.score(smoothing)))
     print('BLEU score: {bleu:0.6f}{conf}'.format(
-        bleu = bleu.bleu(args.smoothing),
-        conf = ' +/- {conf:0.6f}'.format(conf=confidence) if args.confidence_level else ''))
+        bleu = bleu.bleu(smoothing),
+        conf = ' +/- {conf:0.6f}'.format(conf=confidence) if confidence_level else ''))
     print('Human readable BLEU: {readable:2.2f}{conf}'.format(
-        readable = 100. * bleu.bleu(args.smoothing),
-        conf = ' +/- {conf:0.6f}'.format(conf=100.*confidence) if args.confidence_level else ''))
+        readable = 100. * bleu.bleu(smoothing),
+        conf = ' +/- {conf:0.6f}'.format(conf=100.*confidence) if confidence_level else ''))
 
 
 
-def compare(args):
+def compare(translation_files, reference_files, number_bootstrap=10000):
     """
     """
     bleus = []
-    for translations, references in izip(izip(*args.translation_files), izip(*args.reference_files)):
+    for translations, references in zip(zip(*translation_files), zip(*reference_files)):
         bleus.append(tuple(BleuStats(t, references) for t in translations))
 
     # Transpose bleus so its dimensions are t X n.
-    bleus = tuple(izip(*bleus))
+    bleus = tuple(zip(*bleus))
 
-    res = bootstrapNWiseComparison(bleus, m=args.number_bootstrap)
+    res = bootstrapNWiseComparison(bleus, m=number_bootstrap)
 
     for i, t in enumerate(res):
         print('{fn} got max BLEU score in {s:%} of the samples'.format(
-            fn = args.translation_files[i].name,
-            s  = float(t)/args.number_bootstrap))
+            fn = translation_files[i].name,
+            s  = float(t)/number_bootstrap))
+
+
 
 
 
@@ -402,7 +407,12 @@ def score_cli_args(subparsers):
             nargs='+',
             type=FileType('r'),
             help="reference files")
-    parser.set_defaults(func=score)
+    parser.set_defaults(func=lambda args: score(
+        args.translation_file,
+        args.reference_files,
+        args.smoothing,
+        args.confidence_level,
+        args.number_bootstrap))
 
 
 
@@ -416,18 +426,21 @@ def compare_cli_args(subparsers):
     help="""
     Compare scores over a set of testfiles using bootstrap resampling.
     """
-    parser_compare = subparsers.add_parser('compare', help=help)
-    parser_compare.add_argument('-t',
+    parser = subparsers.add_parser('compare', help=help)
+    parser.add_argument('-t',
             dest="translation_files",
             nargs='+',
             type=FileType('r'),
             help="translation files")
-    parser_compare.add_argument('-r',
+    parser.add_argument('-r',
             dest="reference_files",
             nargs='+',
             type=FileType('r'),
             help="reference files")
-    parser_compare.set_defaults(func=compare)
+    parser.set_defaults(func=lambda args: compare(
+        args.translation_files,
+        args.reference_files,
+        args.number_bootstrap))
 
 
 
