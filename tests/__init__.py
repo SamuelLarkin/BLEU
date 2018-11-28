@@ -1,1 +1,1 @@
-from test_bleu import TestBleu
+from .test_bleu import TestBleu
