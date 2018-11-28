@@ -150,7 +150,7 @@ class BleuStats:
         self.len     = len(sentence)
         self.bmlen   = sorted([ (abs(r_len - self.len), r_len) for r_len in map(len, references) ])[0][1]
         self.match   = [ sum(c.values(), 0) for c in self._tgt_counts_clipped ]
-        self.total   = map(lambda x: max(x, 0), range(self.len, self.len - self.norder, -1))
+        self.total   = list(map(lambda x: max(x, 0), range(self.len, self.len - self.norder, -1)))
 
         # Temporary counts that are useful for debugging but slow down BleuStats.__add__() in bootstrapConfInterval().
         del(self._ref_counts)
